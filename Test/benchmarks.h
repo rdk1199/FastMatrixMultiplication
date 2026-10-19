@@ -14,16 +14,32 @@ void test_add()
 
     Matrix a(rows, columns, [](size_t r, size_t c) {return static_cast<double>(r) - static_cast<double>(c);});
     Matrix b(rows, columns, [](size_t r, size_t c) {return static_cast<double>(r) * static_cast<double>(c);});
-    Matrix c(rows, columns);
+    
+
+
+    // basic add
+    Matrix basic_add_sum(rows, columns);
 
     auto start = std::chrono::high_resolution_clock::now();
+    Matrix::basic_add(a, b, basic_add_sum);
+    auto basic_add = std::chrono::high_resolution_clock::now();
 
-    Matrix::basic_add(a, b, c);
-
-    auto end = std::chrono::high_resolution_clock::now();
-
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end -start);
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(basic_add -start);
     std::cout << "basic_add : Time elapsed (ns): " << duration.count() << std::endl;
+
+
+
+   // simd_add
+    Matrix simd_add_sum(rows, columns);
+
+    auto simd_add_start = std::chrono::high_resolution_clock::now();
+    Matrix::simd_add(a,b, simd_add_sum);
+    auto simd_add_end = std::chrono::high_resolution_clock::now();
+
+    auto simd_add_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(simd_add_end - simd_add_start);
+    std::cout << "simd_add : Time elapsed (ns) : " << simd_add_duration.count() << std::endl;
+
+    assert(simd_add_sum == basic_add_sum);
 }
 
 void test_multiply()
@@ -41,10 +57,21 @@ void test_multiply()
 
     Matrix::basic_multiply(a, b, product);
 
-    auto end = std::chrono::high_resolution_clock::now();
+    auto basic_multiply_end = std::chrono::high_resolution_clock::now();
 
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end -start);
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(basic_multiply_end -start);
     std::cout << "basic_multiply: Time elapsed (ns): " << duration.count() << std::endl;
+
+    Matrix cached_col_product(a_rows,  b_cols);
+
+    auto cached_col_start = std::chrono::high_resolution_clock::now();
+    Matrix::cached_column_multiply(a, b, cached_col_product);
+     auto cached_col_end = std::chrono::high_resolution_clock::now();
+
+    auto cached_col_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(cached_col_end - cached_col_start);
+    std::cout << "cached_col_multiply: Time elapsed (ns): " << cached_col_duration.count() << std::endl;
+
+    assert(product == cached_col_product);
 }
 
 
