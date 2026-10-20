@@ -63,6 +63,11 @@ public:
         entries_[index(row,col)] = val;
     }
 
+    // Get row as raw array of doubles
+    inline constexpr double* get_row(size_t row) {
+        return &entries_[index(row, 0)];
+    }
+
     // Debug: write matrix as string - each row separated by newline
     std::string to_string() const;
 
@@ -73,14 +78,27 @@ public:
     // Basic entry-by-entry matrix addition
     static void basic_add(const Matrix& a, const Matrix& b, Matrix& sum);
 
+    // Unaligned SIMD add
+    static void simd_add(const Matrix& a, const Matrix& b, Matrix& sum);
+
+
     // Basic entry-by-entry matrix multiplication using the standard method
     static void basic_multiply(const Matrix& a, const Matrix& b, Matrix& product);
 
-    bool operator==(const Matrix& other)
+    // Basic entry-by-entry matrix multiplication using the standard method, but columns of b are copied into contiguous memory
+    // to improve cache friendliness
+    static void cached_column_multiply(const Matrix& a, const Matrix& b, Matrix& product);
+
+    // SIMD multiply
+    static void simd_column_multiply(const Matrix& a, const Matrix& b, Matrix& product);
+
+    bool operator==(const Matrix& other) const
     {
-        return n_rows_ == other.n_rows() && 
-               n_columns_ == other.n_columns() &&
-               (std::memcmp(entries_.data(), other.entries_.data(), n_rows_*n_columns_) == 0 );
+       return n_rows_ == other.n_rows() && 
+              n_columns_ == other.n_columns() &&
+              (std::memcmp(entries_.data(), other.entries_.data(), n_rows_*n_columns_) == 0 );
+
+       return true;
     }
 
 private:
@@ -88,7 +106,10 @@ private:
     size_t n_columns_;
 
     // Compute the flat index of an entry given the row and column
-    inline size_t index(size_t row, size_t col) const;
+    inline constexpr size_t index(size_t row, size_t col) const
+    {
+        return row * n_columns_ + col;
+    }
 
     // row major flat pack
     std::vector<double> entries_;

@@ -71,7 +71,19 @@ void test_multiply()
     auto cached_col_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(cached_col_end - cached_col_start);
     std::cout << "cached_col_multiply: Time elapsed (ns): " << cached_col_duration.count() << std::endl;
 
+
+    Matrix simd_col_product(a_rows, b_cols);
+
+    auto simd_col_start = std::chrono::high_resolution_clock::now();
+    Matrix::simd_column_multiply(a, b, simd_col_product);
+    auto simd_col_end = std::chrono::high_resolution_clock::now();
+
+    auto simd_col_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(simd_col_end - simd_col_start);
+    std::cout << "simd_col_multiply: Time elapsed (ns): " << simd_col_duration.count() << std::endl;
+
+
     assert(product == cached_col_product);
+    assert(product == simd_col_product);
 }
 
 
