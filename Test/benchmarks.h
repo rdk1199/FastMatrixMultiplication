@@ -3,8 +3,10 @@
 
 #include <iostream>
 #include <chrono>
+#include <functional>
 
 #include <matrix.h>
+#include <thread_pool.h>
 
 void test_add()
 {
@@ -15,8 +17,6 @@ void test_add()
     Matrix a(rows, columns, [](size_t r, size_t c) {return static_cast<double>(r) - static_cast<double>(c);});
     Matrix b(rows, columns, [](size_t r, size_t c) {return static_cast<double>(r) * static_cast<double>(c);});
     
-
-
     // basic add
     Matrix basic_add_sum(rows, columns);
 
@@ -26,8 +26,6 @@ void test_add()
 
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(basic_add -start);
     std::cout << "basic_add : Time elapsed (ns): " << duration.count() << std::endl;
-
-
 
    // simd_add
     Matrix simd_add_sum(rows, columns);
@@ -82,8 +80,21 @@ void test_multiply()
     std::cout << "simd_col_multiply: Time elapsed (ns): " << simd_col_duration.count() << std::endl;
 
 
+    //Multithreaded tests
+    ThreadPool<15> thread_pool{};
+
+    Matrix mt_basic_product(a_rows, b_cols);
+
+    auto mt_basic_start = std::chrono::high_resolution_clock::now();
+    Matrix::mt_basic_multiply(a, b, mt_basic_product, thread_pool);
+    auto mt_basic_end = std::chrono::high_resolution_clock::now();
+
+    auto mt_basic_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(mt_basic_end - mt_basic_start);
+    std::cout << "mt_basic_multiply: Time elapsed (ns): " << mt_basic_duration.count() << std::endl;
+
     assert(product == cached_col_product);
     assert(product == simd_col_product);
+    assert(product == mt_basic_product);
 }
 
 

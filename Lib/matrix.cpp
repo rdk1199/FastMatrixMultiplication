@@ -144,3 +144,15 @@ void Matrix::simd_column_multiply(const Matrix& a, const Matrix& b, Matrix& prod
         }
     }
 }
+
+void Matrix::basic_multiply_compute_columns(const Matrix& a, const Matrix& b, Matrix& product, size_t min, size_t max)
+{
+    for(size_t i = 0; i < a.n_rows(); i++) {
+        for(size_t j = min; j <= max; j++) {
+            product.entries_[product.index(i, j)] = 0.0;
+            for(size_t k = 0; k < a.n_columns(); k++) {
+                product.entries_[product.index(i, j)] += a.at(i, k) * b.at(k, j);
+            }
+        }
+    }
+}

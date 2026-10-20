@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "thread_pool.h"
+
 // Class to represent a matrix of doubles
 class Matrix
 {
@@ -68,6 +70,16 @@ public:
         return &entries_[index(row, 0)];
     }
 
+    // Check value equality
+    bool operator==(const Matrix& other) const
+    {
+       return n_rows_ == other.n_rows() && 
+              n_columns_ == other.n_columns() &&
+              (std::memcmp(entries_.data(), other.entries_.data(), n_rows_*n_columns_) == 0 );
+
+       return true;
+    }
+
     // Debug: write matrix as string - each row separated by newline
     std::string to_string() const;
 
@@ -81,7 +93,6 @@ public:
     // Unaligned SIMD add
     static void simd_add(const Matrix& a, const Matrix& b, Matrix& sum);
 
-
     // Basic entry-by-entry matrix multiplication using the standard method
     static void basic_multiply(const Matrix& a, const Matrix& b, Matrix& product);
 
@@ -92,13 +103,50 @@ public:
     // SIMD multiply
     static void simd_column_multiply(const Matrix& a, const Matrix& b, Matrix& product);
 
-    bool operator==(const Matrix& other) const
-    {
-       return n_rows_ == other.n_rows() && 
-              n_columns_ == other.n_columns() &&
-              (std::memcmp(entries_.data(), other.entries_.data(), n_rows_*n_columns_) == 0 );
 
-       return true;
+    // Compute columns of product from min to max inclusive using basic entry-by-entry multiplication
+    static void basic_multiply_compute_columns(const Matrix& a, const Matrix& b, Matrix& product, size_t min, size_t max);
+
+    // Basic entry-by-entry matrix multiplication, but multithreaded
+    template<size_t num_threads>
+    static void mt_basic_multiply(const Matrix&a, const Matrix& b, Matrix& product, ThreadPool<num_threads>& thread_pool)
+    {
+        size_t num_columns = b.n_columns();
+
+        size_t columns_per_thread = num_columns / num_threads;
+        size_t column_remainder = num_columns % num_threads;
+
+        auto compute_columns_task = [&](size_t thread_index, size_t n_threads) {
+            
+            // Helper lambda to compute the number of columns a given thread will compute
+            // The first remainder columns will each take one thread from those remaining after the division -
+            // the rest of the columns will take only columns_per_thread
+            auto num_columns_of_thread_index = [&](size_t p_thread_index) {
+                return (p_thread_index < column_remainder) ? columns_per_thread + 1 : columns_per_thread;
+            };
+            
+            // Number of columns this thread will compute
+            size_t num_columns = num_columns_of_thread_index(thread_index);
+
+            // Number of columns before this one already computed in other threads
+            // TODO: There's definitely a slicker way to do this
+            size_t num_columns_already_computed = 0;
+            for(size_t i = 0; i < thread_index; i++)
+            {
+                num_columns_already_computed += num_columns_of_thread_index(i);
+            }
+
+            // The first non-computed column
+            size_t start = num_columns_already_computed;
+
+            // The last column we will compute
+            size_t end = start + num_columns - 1;
+
+            basic_multiply_compute_columns(a, b, product, start, end);
+        };
+
+        thread_pool.set_function(compute_columns_task);
+        thread_pool.execute();
     }
 
 private:

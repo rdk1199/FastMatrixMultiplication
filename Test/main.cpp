@@ -2,8 +2,10 @@
 #include <iostream>
 
 #include <matrix.h>
+#include <thread_pool.h>
 
 #include "benchmarks.h"
+
 
 int main()
 {   
