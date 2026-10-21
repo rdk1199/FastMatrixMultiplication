@@ -81,7 +81,7 @@ void test_multiply()
 
 
     //Multithreaded tests
-    ThreadPool<15> thread_pool{};
+    ThreadPool thread_pool(std::thread::hardware_concurrency());
 
     Matrix mt_basic_product(a_rows, b_cols);
 
