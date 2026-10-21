@@ -7,17 +7,16 @@
 #include <thread>
 
 
-// Thread pool of size N
-template <size_t N>
 class ThreadPool
 {
 public:
 
-    ThreadPool():   
-        thread_done_flags_({})
+    ThreadPool(size_t num_threads):
+        num_threads_(num_threads),   
+        thread_done_flags_()
     {
         //initialize threads
-        for(size_t i = 0; i < N; i++)
+        for(size_t i = 0; i < num_threads_; i++)
         {
             threads_[i] = std::thread(&ThreadPool::thread_loop, std::ref(*this), i);
         }
@@ -26,7 +25,7 @@ public:
     ~ThreadPool()
     {
         alive_ = false;
-        for(size_t i = 0; i < N; i++)
+        for(size_t i = 0; i < num_threads_; i++)
         {
             threads_[i].join();
         }
@@ -60,6 +59,8 @@ public:
         ready_ = false;
     }
 
+    constexpr size_t num_threads() const {return num_threads_;}
+
 private:
     // Thread will continuously run and execute tasks when prompted
     // Prompt is triggered by setting ready_ = true;
@@ -69,7 +70,7 @@ private:
         {
             if(ready_ && func_ && !thread_done_flags_[thread_index])
             {
-                func_(thread_index, N);
+                func_(thread_index, num_threads_);
                 // guarantee that the loop executes at most once
                 thread_done_flags_[thread_index] = true;
             }
@@ -78,12 +79,12 @@ private:
 
     void clear_done_flags()
     {
-        std::memset(thread_done_flags_, 0, N);
+        std::memset(thread_done_flags_, 0, MAX_NUM_THREADS);
     }
 
     bool check_all_done_flags()
     {
-        for(size_t i = 0; i < N; i++)
+        for(size_t i = 0; i < num_threads_; i++)
         {
             if(!thread_done_flags_[i])
             {
@@ -94,6 +95,9 @@ private:
         return true;
     }
 
+    // Maximum number of threads supported
+    inline static constexpr size_t MAX_NUM_THREADS = 32;
+
     // Thread pool is alive - set false upon destruction
     std::atomic<bool> alive_ = true;
 
@@ -103,11 +107,13 @@ private:
     // Function for each thread to execute
     std::function<void(size_t thread_index, size_t num_threads)> func_ = nullptr;
 
+    const size_t num_threads_;
+
     // Running threads
-    std::thread threads_[N];
+    std::thread threads_[MAX_NUM_THREADS];
 
     // Flags set by each thread to signal that they are done
-    std::atomic<bool> thread_done_flags_[N];
+    std::atomic<bool> thread_done_flags_[MAX_NUM_THREADS];
 };
 
 

@@ -92,9 +92,19 @@ void test_multiply()
     auto mt_basic_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(mt_basic_end - mt_basic_start);
     std::cout << "mt_basic_multiply: Time elapsed (ns): " << mt_basic_duration.count() << std::endl;
 
+    Matrix mt_simd_product(a_rows, b_cols);
+
+    auto mt_simd_start = std::chrono::high_resolution_clock::now();
+    Matrix::mt_simd_column_multiply(a, b, mt_simd_product, thread_pool);
+    auto mt_simd_end = std::chrono::high_resolution_clock::now();
+
+    auto mt_simd_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(mt_simd_end - mt_simd_start);
+    std::cout << "mt_simd_multiply: Time elapsed (ns): " << mt_simd_duration.count() << std::endl;
+
     assert(product == cached_col_product);
     assert(product == simd_col_product);
     assert(product == mt_basic_product);
+    assert(product == mt_simd_product);
 }
 
 

@@ -1,7 +1,9 @@
 #include "matrix.h"
+#include "util.h"
 
 #include <immintrin.h>
 #include <iostream>
+#include <mutex>
 #include <sstream>
 
 using size_t = std::size_t;
@@ -155,4 +157,73 @@ void Matrix::basic_multiply_compute_columns(const Matrix& a, const Matrix& b, Ma
             }
         }
     }
+}
+
+// Basic entry-by-entry matrix multiplication, but multithreaded
+void Matrix::mt_basic_multiply(const Matrix&a, const Matrix& b, Matrix& product, ThreadPool& thread_pool)
+{
+    auto compute_columns_task = [&](size_t thread_index, size_t n_threads) {
+        IndexPair column_interval = get_interval(b.n_columns(), thread_pool.num_threads(), thread_index);
+        basic_multiply_compute_columns(a, b, product, column_interval.start, column_interval.end);
+    };
+
+    thread_pool.set_function(compute_columns_task);
+    thread_pool.execute();
+}
+
+void Matrix::simd_multiply_compute_columns(const Matrix& a, const Matrix& b, Matrix& product, size_t min, size_t max)
+{
+    // compute product row by row, 4 entries at a time
+    const int col_remainder = (max - min + 1) % 4;
+
+    //do the first entries manually
+    for(size_t i = 0; i < a.n_rows(); i++)
+    {
+        for(size_t j = min; j < min + col_remainder && j <= max; j++)
+        {
+            product.set(i, j, 0.0);
+            for(size_t k = 0; k < a.n_columns(); k++)
+            {
+                product.entries_[product.index(i, j)] += a.at(i, k) * b.at(k, j);
+            }
+        }
+    }
+
+    // compute remainder column by column
+    for(size_t j = min + col_remainder; j <= max; j += 4)
+    {
+        // first read the 4 columns into contiguous memory
+        std::vector<__m256d> cols(b.n_rows());
+
+        //store column sub-matrix in row-major order
+        for(size_t k = 0; k < b.n_rows(); k++)
+        {
+            // load entries j, j+1, j+2, j+3 of row k
+            cols[k] = _mm256_loadu_pd(&b.entries_.data()[b.index(k,j)]);
+        }
+
+        // compute row by row
+        for(size_t i = 0; i < a.n_rows(); i++)
+        {
+            __m256d product_entries = {0.0, 0.0, 0.0, 0.0};
+            for(size_t k = 0; k < a.n_columns(); k++)
+            {
+                __m256d a_ik = _mm256_set1_pd(a.at(i,k));
+                product_entries = _mm256_fmadd_pd(a_ik, cols[k], product_entries);
+            }
+
+            _mm256_storeu_pd(&(product.entries_[product.index(i, j)]), product_entries);
+        }
+    }
+}
+
+void Matrix::mt_simd_column_multiply(const Matrix&a, const Matrix& b, Matrix& product, ThreadPool& thread_pool)
+{
+    auto compute_columns_task = [&](size_t thread_index, size_t n_threads) {
+        IndexPair column_interval = get_interval(b.n_columns(), thread_pool.num_threads(), thread_index);
+        simd_multiply_compute_columns(a, b, product, column_interval.start, column_interval.end);
+    };
+
+    thread_pool.set_function(compute_columns_task);
+    thread_pool.execute();
 }
