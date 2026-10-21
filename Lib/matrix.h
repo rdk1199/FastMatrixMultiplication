@@ -83,7 +83,13 @@ public:
     // Debug: write matrix as string - each row separated by newline
     std::string to_string() const;
 
+
     // Operations:
+
+    inline void set_zero()
+    {
+        std::fill(entries_.begin(), entries_.end(), 0.0);
+    }
 
     // All of these assume that the input matrices are compatible and the result matrices are properly sized
 
@@ -95,6 +101,9 @@ public:
 
     // Basic entry-by-entry matrix multiplication using the standard method
     static void basic_multiply(const Matrix& a, const Matrix& b, Matrix& product);
+
+    // Entry-by-entry matrix multiplication with loop order switched
+    static void basic_loop_switched_multiply(const Matrix& a, const Matrix& b, Matrix& product);
 
     // Basic entry-by-entry matrix multiplication using the standard method, but columns of b are copied into contiguous memory
     // to improve cache friendliness

@@ -60,6 +60,17 @@ void test_multiply()
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(basic_multiply_end -start);
     std::cout << "basic_multiply: Time elapsed (ns): " << duration.count() << std::endl;
 
+
+    Matrix basic_loop_switched_product(a_rows,  b_cols);
+
+    auto basic_loop_switched_start = std::chrono::high_resolution_clock::now();
+    Matrix::basic_loop_switched_multiply(a, b, basic_loop_switched_product);
+     auto basic_loop_switched_end = std::chrono::high_resolution_clock::now();
+
+    auto basic_loop_switched_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(basic_loop_switched_end - basic_loop_switched_start);
+    std::cout << "basic_loop_switched_multiply: Time elapsed (ns): " << basic_loop_switched_duration.count() << std::endl;
+
+
     Matrix cached_col_product(a_rows,  b_cols);
 
     auto cached_col_start = std::chrono::high_resolution_clock::now();

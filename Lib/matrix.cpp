@@ -65,6 +65,20 @@ void Matrix::basic_multiply(const Matrix& a, const Matrix& b, Matrix& product)
     }
 }
 
+// Entry-by-entry matrix multiplication with loop order switched
+void Matrix::basic_loop_switched_multiply(const Matrix& a, const Matrix& b, Matrix& product)
+{
+    product.set_zero();
+    for(size_t i = 0; i < a.n_rows(); i++) {
+        for(size_t k = 0; k < a.n_columns(); k++) {
+            for(size_t j = 0; j < b.n_columns(); j++) {
+                product.entries_[product.index(i, j)] += a.at(i, k) * b.at(k, j);
+            }
+        }
+    }
+}
+
+
 void Matrix::cached_column_multiply(const Matrix& a, const Matrix& b, Matrix& product)
 {
     // Vector to store each column of b
@@ -119,12 +133,11 @@ void Matrix::simd_column_multiply(const Matrix& a, const Matrix& b, Matrix& prod
         }
     }
 
-    // compute remainder column by column
+    // Vector to hold the 4 columns we are working on
+    std::vector<__m256d> cols(b.n_rows());
     for(size_t j = col_remainder; j < b.n_columns(); j += 4)
     {
         // first read the 4 columns into contiguous memory
-        std::vector<__m256d> cols(b.n_rows());
-
         //store column sub-matrix in row-major order
         for(size_t k = 0; k < b.n_rows(); k++)
         {
@@ -189,11 +202,12 @@ void Matrix::simd_multiply_compute_columns(const Matrix& a, const Matrix& b, Mat
         }
     }
 
-    // compute remainder column by column
+    // Vector to hold columns that are being worked on
+    std::vector<__m256d> cols(b.n_rows());
     for(size_t j = min + col_remainder; j <= max; j += 4)
     {
         // first read the 4 columns into contiguous memory
-        std::vector<__m256d> cols(b.n_rows());
+        
 
         //store column sub-matrix in row-major order
         for(size_t k = 0; k < b.n_rows(); k++)
