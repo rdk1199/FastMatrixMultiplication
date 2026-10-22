@@ -160,6 +160,75 @@ void Matrix::simd_column_multiply(const Matrix& a, const Matrix& b, Matrix& prod
     }
 }
 
+void Matrix::multiply_block(const Matrix& a, 
+                           const Matrix& b, 
+                           size_t a_start_row, 
+                           size_t a_end_row,
+                           size_t a_start_col,
+                           size_t a_end_col,
+                           size_t b_start_col,
+                           size_t b_end_col,
+                           Matrix& product)
+{
+    for(size_t i = a_start_row; i <= a_end_row; i++)
+    {
+        for(size_t k = a_start_col; k <= a_end_col; k++)
+        {
+            for(size_t j = b_start_col; j <= b_end_col; j++)
+            {
+                product.entries_[product.index(i,j)] += a.at(i, k) * b.at(k,j);
+            }
+        }
+    }
+}
+
+void Matrix::cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& product)
+{
+    constexpr size_t BLOCK_SIZE = 16;
+
+    product.set_zero();
+
+    size_t block_a_row_remainder = a.n_rows() % BLOCK_SIZE;
+    size_t block_a_row_quotient = a.n_rows() / BLOCK_SIZE;
+
+    size_t block_a_col_remainder = a.n_columns() % BLOCK_SIZE;
+    size_t block_a_col_quotient = a.n_columns() / BLOCK_SIZE;
+
+    size_t block_b_col_remainder = b.n_columns() % BLOCK_SIZE;
+    size_t block_b_col_quotient = b.n_columns() / BLOCK_SIZE;
+
+    size_t num_a_block_rows = block_a_row_quotient + (block_a_row_remainder > 0 ?  1 : 0);
+    size_t num_a_block_cols = block_a_col_quotient + (block_a_col_remainder > 0 ?  1 : 0);
+    size_t num_b_block_cols = block_b_col_quotient + (block_b_col_remainder > 0 ?  1 : 0);
+
+    for(size_t i = 0; i < num_a_block_rows; i++)
+    {
+        for(size_t j = 0; j < num_b_block_cols; j++)
+        {
+            for(size_t k = 0; k < num_a_block_cols; k++)
+            {
+                size_t a_start_row = i * BLOCK_SIZE;
+                size_t a_end_row = std::min(a_start_row + BLOCK_SIZE - 1, a.n_rows() - 1);
+
+                size_t a_start_col = k * BLOCK_SIZE;
+                size_t a_end_col = std::min(a_start_col + BLOCK_SIZE - 1, a.n_columns() - 1);
+                
+                size_t b_start_col = j * BLOCK_SIZE;
+                size_t b_end_col = std::min(b_start_col + BLOCK_SIZE - 1, b.n_columns() - 1);
+
+                /*
+                std::cout << "i: " << i << " j: " << j << " k: " << k <<  std::endl << ", a_start,end_row: " <<
+                a_start_row << " " << a_end_row << std::endl << " a_start,end_col: " << a_start_col << " " << a_end_col << std::endl<<
+                " b_start,end_col " << b_start_col << " " << b_end_col << std::endl; 
+*/
+
+                multiply_block(a, b, a_start_row, a_end_row, a_start_col, a_end_col, b_start_col, b_end_col, product);
+            }
+            
+        }
+    }
+}
+
 void Matrix::basic_multiply_compute_columns(const Matrix& a, const Matrix& b, Matrix& product, size_t min, size_t max)
 {
     for(size_t i = 0; i < a.n_rows(); i++) {

@@ -42,8 +42,8 @@ void test_add()
 
 void test_multiply()
 {
-    size_t a_rows = 251;
-    size_t a_cols = 193;
+    size_t a_rows = 449;
+    size_t a_cols = 563;
     size_t b_cols = 311;
 
     Matrix a(a_rows, a_cols, [](size_t r, size_t c) {return 2 * r -  static_cast<double>(c);});
@@ -91,6 +91,16 @@ void test_multiply()
     std::cout << "simd_col_multiply: Time elapsed (ns): " << simd_col_duration.count() << std::endl;
 
 
+    Matrix cache_block_product(a_rows, b_cols);
+
+    auto cache_block_start = std::chrono::high_resolution_clock::now();
+    Matrix::cache_block_multiply(a, b, cache_block_product);
+    auto cache_block_end = std::chrono::high_resolution_clock::now();
+
+    auto cache_block_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(cache_block_end - cache_block_start);
+    std::cout << "cache_block_multiply: Time elapsed (ns): " << cache_block_duration.count() << std::endl;
+
+
     //Multithreaded tests
     ThreadPool thread_pool(std::thread::hardware_concurrency());
 
@@ -113,6 +123,7 @@ void test_multiply()
     std::cout << "mt_simd_multiply: Time elapsed (ns): " << mt_simd_duration.count() << std::endl;
 
     assert(product == cached_col_product);
+    assert(product == cache_block_product);
     assert(product == simd_col_product);
     assert(product == mt_basic_product);
     assert(product == mt_simd_product);

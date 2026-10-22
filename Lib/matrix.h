@@ -113,6 +113,12 @@ public:
     static void simd_column_multiply(const Matrix& a, const Matrix& b, Matrix& product);
 
 
+    
+
+    // Cache block multiply
+    static void cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& product);
+
+
     // Basic entry-by-entry matrix multiplication, but multithreaded
     static void mt_basic_multiply(const Matrix& a, const Matrix& b, Matrix& product, ThreadPool& thread_pool);
 
@@ -127,6 +133,17 @@ private:
 
     // Compute columns of product from min to max inclusive using SIMD
     static void simd_multiply_compute_columns(const Matrix& a, const Matrix& b, Matrix& product, size_t min, size_t max);
+
+    // compute the product of sub-blocks of a and b and place them in the appropriate entries in product
+    static inline void multiply_block(const Matrix& a, 
+                               const Matrix& b, 
+                               size_t a_start_row, 
+                               size_t a_end_row,
+                               size_t a_start_col,
+                               size_t a_end_col,
+                               size_t b_start_col,
+                               size_t b_end_col,
+                               Matrix& product);
 
     size_t n_rows_;
     size_t n_columns_;
