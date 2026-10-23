@@ -182,9 +182,24 @@ void Matrix::multiply_block(const Matrix& a,
     }
 }
 
+/*
+void Matrix::simd_multiply_block(const Matrix& a, 
+                                const Matrix& b, 
+                                size_t a_start_row, 
+                                size_t a_end_row,
+                                size_t a_start_col,
+                                size_t a_end_col,
+                                size_t b_start_col,
+                                size_t b_end_col,
+                                Matrix& product)
+{
+
+}
+*/
+
 void Matrix::cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& product)
 {
-    constexpr size_t BLOCK_SIZE = 16;
+    constexpr size_t BLOCK_SIZE = 32;
 
     product.set_zero();
 
@@ -203,10 +218,10 @@ void Matrix::cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& prod
 
     for(size_t i = 0; i < num_a_block_rows; i++)
     {
-        for(size_t j = 0; j < num_b_block_cols; j++)
+        for(size_t k = 0; k < num_a_block_cols; k++)
         {
-            for(size_t k = 0; k < num_a_block_cols; k++)
-            {
+            for(size_t j = 0; j < num_b_block_cols; j++)
+            {     
                 size_t a_start_row = i * BLOCK_SIZE;
                 size_t a_end_row = std::min(a_start_row + BLOCK_SIZE - 1, a.n_rows() - 1);
 
@@ -215,12 +230,6 @@ void Matrix::cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& prod
                 
                 size_t b_start_col = j * BLOCK_SIZE;
                 size_t b_end_col = std::min(b_start_col + BLOCK_SIZE - 1, b.n_columns() - 1);
-
-                /*
-                std::cout << "i: " << i << " j: " << j << " k: " << k <<  std::endl << ", a_start,end_row: " <<
-                a_start_row << " " << a_end_row << std::endl << " a_start,end_col: " << a_start_col << " " << a_end_col << std::endl<<
-                " b_start,end_col " << b_start_col << " " << b_end_col << std::endl; 
-*/
 
                 multiply_block(a, b, a_start_row, a_end_row, a_start_col, a_end_col, b_start_col, b_end_col, product);
             }
@@ -276,8 +285,6 @@ void Matrix::simd_multiply_compute_columns(const Matrix& a, const Matrix& b, Mat
     for(size_t j = min + col_remainder; j <= max; j += 4)
     {
         // first read the 4 columns into contiguous memory
-        
-
         //store column sub-matrix in row-major order
         for(size_t k = 0; k < b.n_rows(); k++)
         {
@@ -309,4 +316,24 @@ void Matrix::mt_simd_column_multiply(const Matrix&a, const Matrix& b, Matrix& pr
 
     thread_pool.set_function(compute_columns_task);
     thread_pool.execute();
+}
+
+void Matrix::open_blas_multiply(const Matrix& a, const Matrix& b, Matrix& product)
+{
+    cblas_dgemm(
+        CblasRowMajor,
+        CblasNoTrans,
+        CblasNoTrans,
+        a.n_rows(),
+        b.n_columns(),
+        a.n_columns(),
+        1.0,
+        a.entries_.data(),
+        a.n_columns(),
+        b.entries_.data(),
+        b.n_columns(),
+        0.0,
+        product.entries_.data(),
+        product.n_columns()
+    );
 }

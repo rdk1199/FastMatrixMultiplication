@@ -1,6 +1,6 @@
 SRC_DIRS := . ../Lib
 SRC_FILES := $(foreach dir, $(SRC_DIRS), $(wildcard $(dir)/*.cpp))
-LDFLAGS := -lpthread
+LDFLAGS := -lpthread -lopenblas
 CXXFLAGS := -g -mavx -mfma -O0 -std=c++23 -I../Lib
 
 test: cuda_matrix_test.bin

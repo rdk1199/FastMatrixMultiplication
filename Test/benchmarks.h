@@ -42,9 +42,9 @@ void test_add()
 
 void test_multiply()
 {
-    size_t a_rows = 449;
-    size_t a_cols = 563;
-    size_t b_cols = 311;
+    size_t a_rows = 677;
+    size_t a_cols = 823;
+    size_t b_cols = 947;
 
     Matrix a(a_rows, a_cols, [](size_t r, size_t c) {return 2 * r -  static_cast<double>(c);});
     Matrix b(a_cols, b_cols, [](size_t r, size_t c){return r + c;});
@@ -101,6 +101,17 @@ void test_multiply()
     std::cout << "cache_block_multiply: Time elapsed (ns): " << cache_block_duration.count() << std::endl;
 
 
+    // compare to OpenBlas library
+    Matrix open_blas_product(a_rows, b_cols);
+
+    auto open_blas_start = std::chrono::high_resolution_clock::now();
+    Matrix::open_blas_multiply(a, b, open_blas_product);
+    auto open_blas_end = std::chrono::high_resolution_clock::now();
+
+    auto open_blas_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(open_blas_end - open_blas_start);
+    std::cout << "open_blas_multiply: Time elapsed (ns): " << open_blas_duration.count() << std::endl;
+
+
     //Multithreaded tests
     ThreadPool thread_pool(std::thread::hardware_concurrency());
 
@@ -127,6 +138,7 @@ void test_multiply()
     assert(product == simd_col_product);
     assert(product == mt_basic_product);
     assert(product == mt_simd_product);
+    assert(product == open_blas_product);
 }
 
 

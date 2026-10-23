@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include <cblas.h>
+
 #include "thread_pool.h"
 
 // Class to represent a matrix of doubles
@@ -118,12 +120,15 @@ public:
     // Cache block multiply
     static void cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& product);
 
-
     // Basic entry-by-entry matrix multiplication, but multithreaded
     static void mt_basic_multiply(const Matrix& a, const Matrix& b, Matrix& product, ThreadPool& thread_pool);
 
     // Multithreaded matrix multiplication using SIMD to traverse multiple columns at once
     static void mt_simd_column_multiply(const Matrix& a, const Matrix& b, Matrix& product, ThreadPool& thread_pool);
+
+
+    // For comparison: OpenBLAS multiply:
+    static void open_blas_multiply(const Matrix& a, const Matrix& b, Matrix& product);
     
 
 private:
@@ -136,6 +141,16 @@ private:
 
     // compute the product of sub-blocks of a and b and place them in the appropriate entries in product
     static inline void multiply_block(const Matrix& a, 
+                               const Matrix& b, 
+                               size_t a_start_row, 
+                               size_t a_end_row,
+                               size_t a_start_col,
+                               size_t a_end_col,
+                               size_t b_start_col,
+                               size_t b_end_col,
+                               Matrix& product);
+
+    static inline void cache_warm_multiply_block(const Matrix& a, 
                                const Matrix& b, 
                                size_t a_start_row, 
                                size_t a_end_row,
