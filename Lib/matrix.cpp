@@ -349,9 +349,87 @@ void Matrix::mt_basic_multiply(const Matrix&a, const Matrix& b, Matrix& product,
     thread_pool.execute();
 }
 
-void Matrix::mt_simd_multiply_blocks(const Matrix& a, const Matrix& b, Matrix& product)
+//
+void Matrix::simd_multiply_blocks(const Matrix& a, 
+                                  const Matrix& b,
+                                  Matrix& product, 
+                                  size_t num_a_block_rows,
+                                  size_t num_a_block_cols,
+                                  size_t num_b_block_cols,
+                                  size_t block_size,
+                                  const std::vector<MatrixCoord>& blocks)
 {
+    for(MatrixCoord block : blocks)
+    {
+        size_t i = block.i;
+        size_t j = block.j;
 
+        size_t a_start_row = i * block_size;
+        size_t a_end_row = std::min(a_start_row + block_size - 1, a.n_rows() - 1);
+
+        size_t b_start_col = j * block_size;
+        size_t b_end_col = std::min(b_start_col + block_size - 1, b.n_columns() - 1);
+
+        for(size_t k = 0; k < num_a_block_cols; k++)
+        { 
+            size_t a_start_col = k * block_size;
+            size_t a_end_col = std::min(a_start_col + block_size - 1, a.n_columns() - 1);
+            
+            simd_multiply_block(a, b, a_start_row, a_end_row, a_start_col, a_end_col, b_start_col, b_end_col, product);
+        }
+    }
+}
+
+// Multithreaded SIMD cache blocked multiplication
+void Matrix::mt_simd_cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& product, ThreadPool& thread_pool)
+{
+    constexpr size_t BLOCK_SIZE = 32;
+
+    product.set_zero();
+
+    size_t block_a_row_remainder = a.n_rows() % BLOCK_SIZE;
+    size_t block_a_row_quotient = a.n_rows() / BLOCK_SIZE;
+
+    size_t block_a_col_remainder = a.n_columns() % BLOCK_SIZE;
+    size_t block_a_col_quotient = a.n_columns() / BLOCK_SIZE;
+
+    size_t block_b_col_remainder = b.n_columns() % BLOCK_SIZE;
+    size_t block_b_col_quotient = b.n_columns() / BLOCK_SIZE;
+
+    size_t num_a_block_rows = block_a_row_quotient + (block_a_row_remainder > 0 ?  1 : 0);
+    size_t num_a_block_cols = block_a_col_quotient + (block_a_col_remainder > 0 ?  1 : 0);
+    size_t num_b_block_cols = block_b_col_quotient + (block_b_col_remainder > 0 ?  1 : 0);
+
+
+    size_t num_blocks_total = num_a_block_rows * num_b_block_cols;
+
+    size_t num_blocks_per_thread = num_blocks_total / thread_pool.num_threads();
+    size_t num_blocks_remainder = num_blocks_total % thread_pool.num_threads();
+
+
+    std::vector<std::vector<MatrixCoord>> blocks(thread_pool.num_threads());
+    size_t current_thread_index = 0;
+    size_t num_blocks_for_current_thread = current_thread_index < num_blocks_remainder ? num_blocks_per_thread : num_blocks_per_thread + 1;
+
+    for(size_t i = 0; i < num_a_block_rows; i++)
+    {
+        for(size_t j = 0; j < num_b_block_cols; j++)
+        {     
+            blocks[current_thread_index].push_back(MatrixCoord{i, j});
+            if(blocks[current_thread_index].size() >= num_blocks_for_current_thread)
+            {
+                current_thread_index++ ;
+                num_blocks_for_current_thread = current_thread_index < num_blocks_remainder ? num_blocks_per_thread : num_blocks_per_thread + 1;
+            }
+        }
+    }
+
+    auto thread_task = [&](size_t thread_index, size_t num_threads) {
+        simd_multiply_blocks(a, b, product, num_a_block_rows, num_a_block_cols, num_b_block_cols, BLOCK_SIZE, blocks[thread_index]);
+    };
+
+    thread_pool.set_function(thread_task);
+    thread_pool.execute();
 }
 
 void Matrix::simd_multiply_compute_columns(const Matrix& a, const Matrix& b, Matrix& product, size_t min, size_t max)

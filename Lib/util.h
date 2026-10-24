@@ -6,6 +6,12 @@
 #include <iostream>
 #include <stdio.h>
 
+struct MatrixCoord
+{
+    size_t i;
+    size_t j;
+};
+
 struct IndexPair
 {
     size_t start;

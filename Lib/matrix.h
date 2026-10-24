@@ -11,6 +11,7 @@
 #include <cblas.h>
 
 #include "thread_pool.h"
+#include "util.h"
 
 // Class to represent a matrix of doubles
 class Matrix
@@ -129,6 +130,9 @@ public:
     // Multithreaded matrix multiplication using SIMD to traverse multiple columns at once
     static void mt_simd_column_multiply(const Matrix& a, const Matrix& b, Matrix& product, ThreadPool& thread_pool);
 
+    // Multithreaded SIMD cache blocked multiplication
+    static void mt_simd_cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& product, ThreadPool& thread_pool);
+
     // For comparison: OpenBLAS multiply:
     static void open_blas_multiply(const Matrix& a, const Matrix& b, Matrix& product);
     
@@ -162,7 +166,16 @@ private:
                                size_t b_end_col,
                                Matrix& product);
 
-    static inline void mt_simd_multiply_blocks(const Matrix& a, const Matrix& b, Matrix& product);
+    static inline void simd_multiply_blocks(const Matrix& a, 
+                                            const Matrix& b,
+                                            Matrix& product, 
+                                            size_t num_a_block_rows,
+                                            size_t num_a_block_cols,
+                                            size_t num_b_block_cols,
+                                            size_t block_size,
+                                            const std::vector<MatrixCoord>& blocks);
+
+
 
     size_t n_rows_;
     size_t n_columns_;
