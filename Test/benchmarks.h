@@ -100,6 +100,16 @@ void test_multiply()
     auto cache_block_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(cache_block_end - cache_block_start);
     std::cout << "cache_block_multiply: Time elapsed (ns): " << cache_block_duration.count() << std::endl;
 
+    
+    Matrix simd_cache_block_product(a_rows, b_cols);
+
+    auto simd_cache_block_start = std::chrono::high_resolution_clock::now();
+    Matrix::simd_cache_block_multiply(a, b, simd_cache_block_product);
+    auto simd_cache_block_end = std::chrono::high_resolution_clock::now();
+
+    auto simd_cache_block_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(simd_cache_block_end - simd_cache_block_start);
+    std::cout << "simd_cache_block_multiply: Time elapsed (ns): " << simd_cache_block_duration.count() << std::endl;
+
 
     // compare to OpenBlas library
     Matrix open_blas_product(a_rows, b_cols);
@@ -135,6 +145,7 @@ void test_multiply()
 
     assert(product == cached_col_product);
     assert(product == cache_block_product);
+    assert(product == simd_cache_block_product);
     assert(product == simd_col_product);
     assert(product == mt_basic_product);
     assert(product == mt_simd_product);

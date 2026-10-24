@@ -120,12 +120,14 @@ public:
     // Cache block multiply
     static void cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& product);
 
+    // SIMD Cache block multiply
+    static void simd_cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& product);
+
     // Basic entry-by-entry matrix multiplication, but multithreaded
     static void mt_basic_multiply(const Matrix& a, const Matrix& b, Matrix& product, ThreadPool& thread_pool);
 
     // Multithreaded matrix multiplication using SIMD to traverse multiple columns at once
     static void mt_simd_column_multiply(const Matrix& a, const Matrix& b, Matrix& product, ThreadPool& thread_pool);
-
 
     // For comparison: OpenBLAS multiply:
     static void open_blas_multiply(const Matrix& a, const Matrix& b, Matrix& product);
@@ -150,7 +152,7 @@ private:
                                size_t b_end_col,
                                Matrix& product);
 
-    static inline void cache_warm_multiply_block(const Matrix& a, 
+    static inline void simd_multiply_block(const Matrix& a, 
                                const Matrix& b, 
                                size_t a_start_row, 
                                size_t a_end_row,
@@ -159,6 +161,8 @@ private:
                                size_t b_start_col,
                                size_t b_end_col,
                                Matrix& product);
+
+    static inline void mt_simd_multiply_blocks(const Matrix& a, const Matrix& b, Matrix& product);
 
     size_t n_rows_;
     size_t n_columns_;
