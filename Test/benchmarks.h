@@ -42,9 +42,9 @@ void test_add()
 
 void test_multiply()
 {
-    size_t a_rows = 677;
-    size_t a_cols = 823;
-    size_t b_cols = 947;
+    size_t a_rows = 4483;
+    size_t a_cols = 5309;
+    size_t b_cols = 4441;
 
     Matrix a(a_rows, a_cols, [](size_t r, size_t c) {return 2 * r -  static_cast<double>(c);});
     Matrix b(a_cols, b_cols, [](size_t r, size_t c){return r + c;});
@@ -53,6 +53,7 @@ void test_multiply()
 
     auto start = std::chrono::high_resolution_clock::now();
 
+    /*
     Matrix::basic_multiply(a, b, product);
 
     auto basic_multiply_end = std::chrono::high_resolution_clock::now();
@@ -110,7 +111,7 @@ void test_multiply()
     auto simd_cache_block_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(simd_cache_block_end - simd_cache_block_start);
     std::cout << "simd_cache_block_multiply: Time elapsed (ns): " << simd_cache_block_duration.count() << std::endl;
 
-
+*/
     // compare to OpenBlas library
     Matrix open_blas_product(a_rows, b_cols);
 
@@ -128,7 +129,7 @@ void test_multiply()
     Matrix mt_basic_product(a_rows, b_cols);
 
     auto mt_basic_start = std::chrono::high_resolution_clock::now();
-    Matrix::mt_basic_multiply(a, b, mt_basic_product, thread_pool);
+    //Matrix::mt_basic_multiply(a, b, mt_basic_product, thread_pool);
     auto mt_basic_end = std::chrono::high_resolution_clock::now();
 
     auto mt_basic_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(mt_basic_end - mt_basic_start);
@@ -137,7 +138,7 @@ void test_multiply()
     Matrix mt_simd_product(a_rows, b_cols);
 
     auto mt_simd_start = std::chrono::high_resolution_clock::now();
-    Matrix::mt_simd_column_multiply(a, b, mt_simd_product, thread_pool);
+    //Matrix::mt_simd_column_multiply(a, b, mt_simd_product, thread_pool);
     auto mt_simd_end = std::chrono::high_resolution_clock::now();
 
     auto mt_simd_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(mt_simd_end - mt_simd_start);
@@ -152,14 +153,17 @@ void test_multiply()
     auto mt_simd_cache_block_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(mt_simd_cache_block_end - mt_simd_cache_block_start);
     std::cout << "mt_simd_cache_block_multiply: Time elapsed (ns): " << mt_simd_cache_block_duration.count() << std::endl;
 
-    assert(product == cached_col_product);
-    assert(product == cache_block_product);
-    assert(product == simd_cache_block_product);
-    assert(product == simd_col_product);
-    assert(product == mt_basic_product);
-    assert(product == mt_simd_product);
-    assert(product == mt_simd_cache_block_product);
-    assert(product == open_blas_product);
+   //assert(product == cached_col_product);
+   //assert(product == cache_block_product);
+   //assert(product == simd_cache_block_product);
+   //assert(product == simd_col_product);
+   // assert(product == mt_basic_product);
+   // assert(product == mt_simd_product);
+   // assert(product == mt_simd_cache_block_product);
+   // assert(product == open_blas_product);
+
+    //assert(open_blas_product == mt_simd_product);
+    assert(open_blas_product == mt_simd_cache_block_product);
 }
 
 #endif

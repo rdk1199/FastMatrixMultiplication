@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstring>
 #include <functional>
+#include <immintrin.h>
 #include <string>
 #include <vector>
 
@@ -156,6 +157,7 @@ private:
                                size_t b_end_col,
                                Matrix& product);
 
+    // b_cols is expected to have at least BLOCK_SIZE entries available
     static inline void simd_multiply_block(const Matrix& a, 
                                const Matrix& b, 
                                size_t a_start_row, 
@@ -164,6 +166,7 @@ private:
                                size_t a_end_col,
                                size_t b_start_col,
                                size_t b_end_col,
+                               __m256d* b_cols,
                                Matrix& product);
 
     static inline void simd_multiply_blocks(const Matrix& a, 
@@ -172,7 +175,6 @@ private:
                                             size_t num_a_block_rows,
                                             size_t num_a_block_cols,
                                             size_t num_b_block_cols,
-                                            size_t block_size,
                                             const std::vector<MatrixCoord>& blocks);
 
 

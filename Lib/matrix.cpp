@@ -8,6 +8,11 @@
 
 using size_t = std::size_t;
 
+constexpr size_t SIMD_WIDTH = 4;
+
+// Block side length to use when breaking matrix into square blocks
+constexpr size_t BLOCK_SIZE = 32;
+
 std::string Matrix::to_string() const
 {
     std::stringstream out;
@@ -191,9 +196,9 @@ void Matrix::simd_multiply_block(const Matrix& a,
                                 size_t a_end_col,
                                 size_t b_start_col,
                                 size_t b_end_col,
+                                __m256d* b_cols,
                                 Matrix& product)
 {
-    constexpr size_t SIMD_WIDTH = 4;
 
     size_t total_num_cols = b_end_col - b_start_col + 1;
 
@@ -214,9 +219,6 @@ void Matrix::simd_multiply_block(const Matrix& a,
 
     for(size_t j = b_start_col + remainder; j <= b_end_col; j += SIMD_WIDTH)
     {
-        size_t num_b_rows = a_end_col - a_start_col + 1;
-        std::vector<__m256d> b_cols(num_b_rows);
-
         // pre-load columns
         for(size_t k = a_start_col; k <= a_end_col; k++)
         {
@@ -226,20 +228,13 @@ void Matrix::simd_multiply_block(const Matrix& a,
         // compute row by row
         for(size_t i = a_start_row; i <= a_end_row; i++)
         {
-            __m256d product_entries = {0.0, 0.0, 0.0, 0.0};
+            __m256d product_entries = _mm256_loadu_pd(&(product.entries_[product.index(i, j)]));
             for(size_t k = a_start_col; k <= a_end_col; k++)
             {
                 __m256d a_ik = _mm256_set1_pd(a.at(i,k));
                 product_entries = _mm256_fmadd_pd(a_ik, b_cols[k - a_start_col], product_entries);
             }
-
-            double result[SIMD_WIDTH];
-            _mm256_storeu_pd(result, product_entries);
-
-            for(size_t col = 0; col < 4; col++)
-            {
-                product.entries_[product.index(i, j + col)] += result[col];
-            }
+            _mm256_storeu_pd(&(product.entries_[product.index(i, j)]), product_entries);
         }
     }
 }
@@ -247,7 +242,7 @@ void Matrix::simd_multiply_block(const Matrix& a,
 
 void Matrix::cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& product)
 {
-    constexpr size_t BLOCK_SIZE = 32;
+    
 
     product.set_zero();
 
@@ -287,8 +282,6 @@ void Matrix::cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& prod
 
 void Matrix::simd_cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& product)
 {
-    constexpr size_t BLOCK_SIZE = 32;
-
     product.set_zero();
 
     size_t block_a_row_remainder = a.n_rows() % BLOCK_SIZE;
@@ -303,6 +296,8 @@ void Matrix::simd_cache_block_multiply(const Matrix& a, const Matrix& b, Matrix&
     size_t num_a_block_rows = block_a_row_quotient + (block_a_row_remainder > 0 ?  1 : 0);
     size_t num_a_block_cols = block_a_col_quotient + (block_a_col_remainder > 0 ?  1 : 0);
     size_t num_b_block_cols = block_b_col_quotient + (block_b_col_remainder > 0 ?  1 : 0);
+
+    __m256d b_cols[BLOCK_SIZE];
 
     for(size_t i = 0; i < num_a_block_rows; i++)
     {
@@ -319,7 +314,7 @@ void Matrix::simd_cache_block_multiply(const Matrix& a, const Matrix& b, Matrix&
                 size_t b_start_col = j * BLOCK_SIZE;
                 size_t b_end_col = std::min(b_start_col + BLOCK_SIZE - 1, b.n_columns() - 1);
 
-                simd_multiply_block(a, b, a_start_row, a_end_row, a_start_col, a_end_col, b_start_col, b_end_col, product);
+                simd_multiply_block(a, b, a_start_row, a_end_row, a_start_col, a_end_col, b_start_col, b_end_col, b_cols, product);
             }
         }
     }
@@ -356,7 +351,6 @@ void Matrix::simd_multiply_blocks(const Matrix& a,
                                   size_t num_a_block_rows,
                                   size_t num_a_block_cols,
                                   size_t num_b_block_cols,
-                                  size_t block_size,
                                   const std::vector<MatrixCoord>& blocks)
 {
     for(MatrixCoord block : blocks)
@@ -364,18 +358,22 @@ void Matrix::simd_multiply_blocks(const Matrix& a,
         size_t i = block.i;
         size_t j = block.j;
 
-        size_t a_start_row = i * block_size;
-        size_t a_end_row = std::min(a_start_row + block_size - 1, a.n_rows() - 1);
+        size_t a_start_row = i * BLOCK_SIZE;
+        size_t a_end_row = std::min(a_start_row + BLOCK_SIZE - 1, a.n_rows() - 1);
 
-        size_t b_start_col = j * block_size;
-        size_t b_end_col = std::min(b_start_col + block_size - 1, b.n_columns() - 1);
+        size_t b_start_col = j * BLOCK_SIZE;
+        size_t b_end_col = std::min(b_start_col + BLOCK_SIZE - 1, b.n_columns() - 1);
+
+
+        __m256d b_cols[BLOCK_SIZE];
 
         for(size_t k = 0; k < num_a_block_cols; k++)
         { 
-            size_t a_start_col = k * block_size;
-            size_t a_end_col = std::min(a_start_col + block_size - 1, a.n_columns() - 1);
+            size_t a_start_col = k * BLOCK_SIZE;
+            size_t a_end_col = std::min(a_start_col + BLOCK_SIZE - 1, a.n_columns() - 1);
             
-            simd_multiply_block(a, b, a_start_row, a_end_row, a_start_col, a_end_col, b_start_col, b_end_col, product);
+            
+            simd_multiply_block(a, b, a_start_row, a_end_row, a_start_col, a_end_col, b_start_col, b_end_col, b_cols, product);
         }
     }
 }
@@ -383,8 +381,6 @@ void Matrix::simd_multiply_blocks(const Matrix& a,
 // Multithreaded SIMD cache blocked multiplication
 void Matrix::mt_simd_cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& product, ThreadPool& thread_pool)
 {
-    constexpr size_t BLOCK_SIZE = 32;
-
     product.set_zero();
 
     size_t block_a_row_remainder = a.n_rows() % BLOCK_SIZE;
@@ -409,7 +405,7 @@ void Matrix::mt_simd_cache_block_multiply(const Matrix& a, const Matrix& b, Matr
 
     std::vector<std::vector<MatrixCoord>> blocks(thread_pool.num_threads());
     size_t current_thread_index = 0;
-    size_t num_blocks_for_current_thread = current_thread_index < num_blocks_remainder ? num_blocks_per_thread : num_blocks_per_thread + 1;
+    size_t num_blocks_for_current_thread = current_thread_index < num_blocks_remainder ? (num_blocks_per_thread + 1) : num_blocks_per_thread;
 
     for(size_t i = 0; i < num_a_block_rows; i++)
     {
@@ -419,13 +415,13 @@ void Matrix::mt_simd_cache_block_multiply(const Matrix& a, const Matrix& b, Matr
             if(blocks[current_thread_index].size() >= num_blocks_for_current_thread)
             {
                 current_thread_index++ ;
-                num_blocks_for_current_thread = current_thread_index < num_blocks_remainder ? num_blocks_per_thread : num_blocks_per_thread + 1;
+                num_blocks_for_current_thread = current_thread_index < num_blocks_remainder ? (num_blocks_per_thread + 1): num_blocks_per_thread;
             }
         }
     }
 
     auto thread_task = [&](size_t thread_index, size_t num_threads) {
-        simd_multiply_blocks(a, b, product, num_a_block_rows, num_a_block_cols, num_b_block_cols, BLOCK_SIZE, blocks[thread_index]);
+        simd_multiply_blocks(a, b, product, num_a_block_rows, num_a_block_cols, num_b_block_cols, blocks[thread_index]);
     };
 
     thread_pool.set_function(thread_task);
