@@ -164,6 +164,9 @@ void test_multiply()
 
     //assert(open_blas_product == mt_simd_product);
     assert(open_blas_product == mt_simd_cache_block_product);
+
+    std::cout << "performance compared to OpenBLAS: " << std::chrono::duration<double>(mt_simd_cache_block_duration) / 
+                                                         std::chrono::duration<double>(open_blas_duration) << std::endl;
 }
 
 #endif

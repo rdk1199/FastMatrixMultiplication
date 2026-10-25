@@ -14,6 +14,13 @@
 #include "thread_pool.h"
 #include "util.h"
 
+
+constexpr size_t SIMD_WIDTH = 4;
+
+// Block side length to use when breaking matrix into square blocks
+constexpr size_t BLOCK_SIZE = 96;
+
+
 // Class to represent a matrix of doubles
 class Matrix
 {
@@ -168,6 +175,33 @@ private:
                                size_t b_end_col,
                                __m256d* b_cols,
                                Matrix& product);
+
+    // b_cols is expected to have at least BLOCK_SIZE entries available
+    // assumes that the block being computed is EXACTLY BLOCK_SIZE by BLOCK_SIZE
+    static inline void simd_multiply_full_size_block(const Matrix& a, 
+                               const Matrix& b, 
+                               size_t a_start_row, 
+                               size_t a_end_row,
+                               size_t a_start_col,
+                               size_t a_end_col,
+                               size_t b_start_col,
+                               size_t b_end_col,
+                               __m256d* b_cols,
+                               Matrix& product);
+
+    // b_cols is expected to have at least BLOCK_SIZE entries available
+    // assumes that the block being computed is EXACTLY BLOCK_SIZE by BLOCK_SIZE
+    static inline void unrolled_simd_multiply_full_size_block(const Matrix& a, 
+                               const Matrix& b, 
+                               size_t a_start_row, 
+                               size_t a_end_row,
+                               size_t a_start_col,
+                               size_t a_end_col,
+                               size_t b_start_col,
+                               size_t b_end_col,
+                               __m256d* b_cols,
+                               Matrix& product);
+    
 
     static inline void simd_multiply_blocks(const Matrix& a, 
                                             const Matrix& b,

@@ -8,11 +8,6 @@
 
 using size_t = std::size_t;
 
-constexpr size_t SIMD_WIDTH = 4;
-
-// Block side length to use when breaking matrix into square blocks
-constexpr size_t BLOCK_SIZE = 32;
-
 std::string Matrix::to_string() const
 {
     std::stringstream out;
@@ -239,11 +234,131 @@ void Matrix::simd_multiply_block(const Matrix& a,
     }
 }
 
+void Matrix::simd_multiply_full_size_block(const Matrix& a, 
+                                const Matrix& b, 
+                                size_t a_start_row, 
+                                size_t a_end_row,
+                                size_t a_start_col,
+                                size_t a_end_col,
+                                size_t b_start_col,
+                                size_t b_end_col,
+                                __m256d* b_cols,
+                                Matrix& product)
+{
+    for(size_t j = b_start_col; j <= b_start_col + BLOCK_SIZE; j += SIMD_WIDTH)
+    {
+        // compute row by row
+        for(size_t i = a_start_row; i <= a_start_row + BLOCK_SIZE; i++)
+        {
+            __m256d product_entries = _mm256_loadu_pd(&(product.entries_[product.index(i, j)]));
+            for(size_t k = a_start_col; k <= a_end_col; k++)
+            {
+                __m256d a_ik = _mm256_set1_pd(a.at(i,k));
+                product_entries = _mm256_fmadd_pd(a_ik, _mm256_loadu_pd(&b.entries_.data()[b.index(k, j)]), product_entries);
+            }
+            _mm256_storeu_pd(&(product.entries_[product.index(i, j)]), product_entries);
+        }
+    }
+}
+
+void Matrix::unrolled_simd_multiply_full_size_block(const Matrix& a, 
+                                const Matrix& b, 
+                                size_t a_start_row, 
+                                size_t a_end_row,
+                                size_t a_start_col,
+                                size_t a_end_col,
+                                size_t b_start_col,
+                                size_t b_end_col,
+                                __m256d* b_cols,
+                                Matrix& product)
+{
+    for(size_t j = b_start_col; j <= b_start_col + BLOCK_SIZE; j += SIMD_WIDTH)
+    {
+        // pre-load columns
+        for(size_t k = a_start_col; k <= a_start_col + BLOCK_SIZE; k++)
+        {
+            b_cols[k - a_start_col] = _mm256_loadu_pd(&b.entries_.data()[b.index(k, j)]);
+        }
+
+        // compute row by row
+        for(size_t i = a_start_row; i <= a_start_row + BLOCK_SIZE; i++)
+        {
+            __m256d product_entries = _mm256_loadu_pd(&(product.entries_[product.index(i, j)]));
+            for(size_t k = a_start_col; k <= a_end_col; k++)
+            {
+                __m256d a_ik = _mm256_set1_pd(a.at(i,a_start_col));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[0], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 1));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[1], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 2));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[2], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 3));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[3], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 4));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[4], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 5));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[5], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 6));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[6], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 7));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[7], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 8));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[8], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 9));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[9], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 10));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[10], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 11));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[11], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 12));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[12], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 13));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[13], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 14));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[14], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 15));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[15], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 16));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[16], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 17));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[17], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 18));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[18], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 19));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[19], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 20));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[20], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 21));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[21], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 22));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[22], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 23));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[23], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 24));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[24], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 25));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[25], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 26));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[26], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 27));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[27], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 28));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[28], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 29));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[29], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 30));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[30], product_entries);
+                a_ik = _mm256_set1_pd(a.at(i,a_start_col + 31));
+                product_entries = _mm256_fmadd_pd(a_ik, b_cols[31], product_entries);
+                
+            }
+            _mm256_storeu_pd(&(product.entries_[product.index(i, j)]), product_entries);
+        }
+    }
+}
 
 void Matrix::cache_block_multiply(const Matrix& a, const Matrix& b, Matrix& product)
 {
-    
-
     product.set_zero();
 
     size_t block_a_row_remainder = a.n_rows() % BLOCK_SIZE;
@@ -373,7 +488,14 @@ void Matrix::simd_multiply_blocks(const Matrix& a,
             size_t a_end_col = std::min(a_start_col + BLOCK_SIZE - 1, a.n_columns() - 1);
             
             
-            simd_multiply_block(a, b, a_start_row, a_end_row, a_start_col, a_end_col, b_start_col, b_end_col, b_cols, product);
+            if(a_end_row - a_start_row == BLOCK_SIZE && a_end_col - a_start_col == BLOCK_SIZE && b_end_col - b_start_col == BLOCK_SIZE)
+            {
+                simd_multiply_full_size_block(a, b, a_start_row, a_end_row, a_start_col, a_end_col, b_start_col, b_end_col, b_cols, product);
+            }
+            else
+            {
+                simd_multiply_block(a, b, a_start_row, a_end_row, a_start_col, a_end_col, b_start_col, b_end_col, b_cols, product);
+            }   
         }
     }
 }
