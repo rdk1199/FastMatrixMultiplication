@@ -18,8 +18,14 @@
 constexpr size_t SIMD_WIDTH = 4;
 
 // Block side length to use when breaking matrix into square blocks
-constexpr size_t BLOCK_SIZE = 96;
+constexpr size_t BLOCK_SIZE = 32;
 
+
+static_assert(sizeof(size_t) == sizeof(double));
+
+extern "C" {
+    void asm_kernel_multiply_32_block(const double* A_start_row_start_col, const double* B_start_row_start_col, double* C_start_row_start_col, size_t A_cols, size_t B_cols);
+}
 
 // Class to represent a matrix of doubles
 class Matrix
@@ -181,27 +187,11 @@ private:
     static inline void simd_multiply_full_size_block(const Matrix& a, 
                                const Matrix& b, 
                                size_t a_start_row, 
-                               size_t a_end_row,
                                size_t a_start_col,
-                               size_t a_end_col,
                                size_t b_start_col,
-                               size_t b_end_col,
                                __m256d* b_cols,
                                Matrix& product);
-
-    // b_cols is expected to have at least BLOCK_SIZE entries available
-    // assumes that the block being computed is EXACTLY BLOCK_SIZE by BLOCK_SIZE
-    static inline void unrolled_simd_multiply_full_size_block(const Matrix& a, 
-                               const Matrix& b, 
-                               size_t a_start_row, 
-                               size_t a_end_row,
-                               size_t a_start_col,
-                               size_t a_end_col,
-                               size_t b_start_col,
-                               size_t b_end_col,
-                               __m256d* b_cols,
-                               Matrix& product);
-    
+   
 
     static inline void simd_multiply_blocks(const Matrix& a, 
                                             const Matrix& b,
@@ -225,6 +215,7 @@ private:
     // row major flat pack
     std::vector<double> entries_;
 };
+
 
 
 #endif
